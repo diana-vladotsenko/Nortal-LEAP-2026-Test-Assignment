@@ -280,6 +280,23 @@ class ApiIntegrationTest {
     assertThat(m2Borrow.ok()).isTrue();
   }
 
+  @Test
+  void returnFailsIfNotCurrentBorrower() {
+    rest.postForObject(url("/api/borrow"), new BorrowRequest("b1", "m1"), ResultResponse.class);
+
+    ResultWithNextResponse returned =
+        rest.postForObject(
+            url("/api/return"), new ReturnRequest("b1", "m2"), ResultWithNextResponse.class);
+    assertThat(returned.ok()).isFalse();
+
+    BookResponse book =
+        rest.getForObject(url("/api/books"), BooksResponse.class).items().stream()
+            .filter(b -> b.id().equals("b1"))
+            .findFirst()
+            .orElseThrow();
+    assertThat(book.loanedTo()).isEqualTo("m1");
+  }
+
   private String url(String path) {
     return "http://localhost:" + port + path;
   }

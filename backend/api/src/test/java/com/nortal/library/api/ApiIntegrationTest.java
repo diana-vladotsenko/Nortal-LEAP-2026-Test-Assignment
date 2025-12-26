@@ -248,6 +248,23 @@ class ApiIntegrationTest {
     assertThat(response.getBody()).contains("ok");
   }
 
+  @Test
+  void cannotBorrowAlreadyLoanedBook() {
+    ResultResponse first =
+        rest.postForObject(url("/api/borrow"), new BorrowRequest("b1", "m1"), ResultResponse.class);
+    assertThat(first.ok()).isTrue();
+
+    ResultResponse sameUser =
+        rest.postForObject(url("/api/borrow"), new BorrowRequest("b1", "m1"), ResultResponse.class);
+    assertThat(sameUser.ok()).isFalse();
+    assertThat(sameUser.reason()).isEqualTo("ALREADY_LOANED");
+
+    ResultResponse differentUser =
+        rest.postForObject(url("/api/borrow"), new BorrowRequest("b1", "m2"), ResultResponse.class);
+    assertThat(differentUser.ok()).isFalse();
+    assertThat(differentUser.reason()).isEqualTo("BOOK_UNAVAILABLE");
+  }
+
   private String url(String path) {
     return "http://localhost:" + port + path;
   }

@@ -267,18 +267,16 @@ class ApiIntegrationTest {
 
   @Test
   void reservationQueueEnforcesHeadOfQueueBorrow() {
-    rest.postForObject(url("/api/borrow"), new BorrowRequest("b7", "m1"), ResultResponse.class);
-
-    rest.postForObject(url("/api/reserve"), new ReserveRequest("b7", "m2"), ResultResponse.class);
-    rest.postForObject(url("/api/reserve"), new ReserveRequest("b7", "m3"), ResultResponse.class);
+    rest.postForObject(url("/api/reserve"), new ReserveRequest("b2", "m2"), ResultResponse.class);
+    rest.postForObject(url("/api/reserve"), new ReserveRequest("b2", "m3"), ResultResponse.class);
 
     ResultResponse m3Borrow =
-        rest.postForObject(url("/api/borrow"), new BorrowRequest("b7", "m3"), ResultResponse.class);
+        rest.postForObject(url("/api/borrow"), new BorrowRequest("b2", "m3"), ResultResponse.class);
     assertThat(m3Borrow.ok()).isFalse();
     assertThat(m3Borrow.reason()).isEqualTo("BOOK_RESERVED");
 
     ResultResponse m2Borrow =
-        rest.postForObject(url("/api/borrow"), new BorrowRequest("b7", "m2"), ResultResponse.class);
+        rest.postForObject(url("/api/borrow"), new BorrowRequest("b2", "m2"), ResultResponse.class);
     assertThat(m2Borrow.ok()).isTrue();
   }
 

@@ -300,14 +300,16 @@ class ApiIntegrationTest {
   @Test
   void rejectsDuplicateReservations() {
     ResultResponse firstReserve =
-        rest.postForObject(url("/api/reserve"), new ReserveRequest("b1", "m2"), ResultResponse.class);
+        rest.postForObject(
+            url("/api/reserve"), new ReserveRequest("b1", "m2"), ResultResponse.class);
     assertThat(firstReserve.ok()).isTrue();
 
     ResultResponse duplicateReserve =
-        rest.postForObject(url("/api/reserve"), new ReserveRequest("b1", "m2"), ResultResponse.class);
+        rest.postForObject(
+            url("/api/reserve"), new ReserveRequest("b1", "m2"), ResultResponse.class);
     assertThat(duplicateReserve.ok()).isFalse();
     assertThat(duplicateReserve.reason()).isEqualTo("ALREADY_RESERVED");
-  } 
+  }
 
   private String url(String path) {
     return "http://localhost:" + port + path;

@@ -42,10 +42,12 @@ public class LibraryService {
       return Result.failure("BOOK_UNAVAILABLE");
     }
 
-    if (!entity.getReservationQueue().isEmpty() && !entity.getReservationQueue().get(0).equals(memberId)) {
+    if (!entity.getReservationQueue().isEmpty()
+        && !entity.getReservationQueue().get(0).equals(memberId)) {
       return Result.failure("BOOK_RESERVED");
     }
-    if (!entity.getReservationQueue().isEmpty() && entity.getReservationQueue().get(0).equals(memberId)) {
+    if (!entity.getReservationQueue().isEmpty()
+        && entity.getReservationQueue().get(0).equals(memberId)) {
       entity.getReservationQueue().remove(0);
     }
 

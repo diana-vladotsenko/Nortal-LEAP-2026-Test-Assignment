@@ -35,13 +35,6 @@ public class LibraryService {
 
     Book entity = book.get();
 
-    if (entity.getLoanedTo() != null) {
-      if (entity.getLoanedTo().equals(memberId)) {
-        return Result.failure("ALREADY_LOANED");
-      }
-      return Result.failure("BOOK_UNAVAILABLE");
-    }
-
     if (!entity.getReservationQueue().isEmpty()
         && !entity.getReservationQueue().get(0).equals(memberId)) {
       return Result.failure("BOOK_RESERVED");
@@ -49,6 +42,12 @@ public class LibraryService {
     if (!entity.getReservationQueue().isEmpty()
         && entity.getReservationQueue().get(0).equals(memberId)) {
       entity.getReservationQueue().remove(0);
+    }
+    if (entity.getLoanedTo() != null) {
+      if (entity.getLoanedTo().equals(memberId)) {
+        return Result.failure("ALREADY_LOANED");
+      }
+      return Result.failure("BOOK_UNAVAILABLE");
     }
 
     entity.setLoanedTo(memberId);
@@ -74,8 +73,21 @@ public class LibraryService {
 
     entity.setLoanedTo(null);
     entity.setDueDate(null);
-    String nextMember =
-        entity.getReservationQueue().isEmpty() ? null : entity.getReservationQueue().get(0);
+
+    String nextMember = null;
+
+    while (!entity.getReservationQueue().isEmpty()) {
+      String candidateMember = entity.getReservationQueue().get(0);
+      entity.getReservationQueue().remove(0);
+
+      if (memberRepository.existsById(candidateMember) && canMemberBorrow(candidateMember)) {
+        entity.setLoanedTo(candidateMember);
+        entity.setDueDate(LocalDate.now().plusDays(DEFAULT_LOAN_DAYS));
+        nextMember = candidateMember;
+        break;
+      }
+    }
+
     bookRepository.save(entity);
     return ResultWithNext.success(nextMember);
   }
@@ -93,6 +105,16 @@ public class LibraryService {
 
     if (entity.getReservationQueue().contains(memberId)) {
       return Result.failure("ALREADY_RESERVED");
+    }
+
+    if (entity.getLoanedTo() == null) {
+      if (!canMemberBorrow(memberId)) {
+        return Result.failure("BORROW_LIMIT");
+      }
+      entity.setLoanedTo(memberId);
+      entity.setDueDate(LocalDate.now().plusDays(DEFAULT_LOAN_DAYS));
+      bookRepository.save(entity);
+      return Result.success();
     }
 
     entity.getReservationQueue().add(memberId);

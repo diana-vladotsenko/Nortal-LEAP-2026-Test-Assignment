@@ -267,6 +267,7 @@ class ApiIntegrationTest {
 
   @Test
   void reservationQueueEnforcesHeadOfQueueBorrow() {
+    rest.postForObject(url("/api/borrow"), new BorrowRequest("b2", "m1"), ResultResponse.class);
     rest.postForObject(url("/api/reserve"), new ReserveRequest("b2", "m2"), ResultResponse.class);
     rest.postForObject(url("/api/reserve"), new ReserveRequest("b2", "m3"), ResultResponse.class);
 
@@ -277,7 +278,8 @@ class ApiIntegrationTest {
 
     ResultResponse m2Borrow =
         rest.postForObject(url("/api/borrow"), new BorrowRequest("b2", "m2"), ResultResponse.class);
-    assertThat(m2Borrow.ok()).isTrue();
+    assertThat(m2Borrow.ok()).isFalse();
+    assertThat(m2Borrow.reason()).isEqualTo("BOOK_UNAVAILABLE");
   }
 
   @Test
@@ -299,6 +301,8 @@ class ApiIntegrationTest {
 
   @Test
   void rejectsDuplicateReservations() {
+    rest.postForObject(url("/api/borrow"), new BorrowRequest("b1", "m1"), ResultResponse.class);
+
     ResultResponse firstReserve =
         rest.postForObject(
             url("/api/reserve"), new ReserveRequest("b1", "m2"), ResultResponse.class);
@@ -309,6 +313,57 @@ class ApiIntegrationTest {
             url("/api/reserve"), new ReserveRequest("b1", "m2"), ResultResponse.class);
     assertThat(duplicateReserve.ok()).isFalse();
     assertThat(duplicateReserve.reason()).isEqualTo("ALREADY_RESERVED");
+  }
+
+  @Test
+  void reserveAvailableBookLoansToReserverIfEligible() {
+    BookResponse bookBefore =
+        rest.getForObject(url("/api/books"), BooksResponse.class).items().stream()
+            .filter(b -> b.id().equals("b1"))
+            .findFirst()
+            .orElseThrow();
+    if (bookBefore.loanedTo() != null) {
+      rest.postForObject(
+          url("/api/return"),
+          new ReturnRequest("b1", bookBefore.loanedTo()),
+          ResultWithNextResponse.class);
+    }
+
+    ResultResponse reserve =
+        rest.postForObject(
+            url("/api/reserve"), new ReserveRequest("b1", "m2"), ResultResponse.class);
+    assertThat(reserve.ok()).isTrue();
+
+    BookResponse book =
+        rest.getForObject(url("/api/books"), BooksResponse.class).items().stream()
+            .filter(b -> b.id().equals("b1"))
+            .findFirst()
+            .orElseThrow();
+    assertThat(book.loanedTo()).isEqualTo("m2");
+    assertThat(book.reservationQueue()).isEmpty();
+  }
+
+  @Test
+  void returnHandsBookToNextEligibleReserver() {
+    rest.postForObject(url("/api/borrow"), new BorrowRequest("b1", "m1"), ResultResponse.class);
+
+    rest.postForObject(url("/api/reserve"), new ReserveRequest("b1", "m2"), ResultResponse.class);
+    rest.postForObject(url("/api/reserve"), new ReserveRequest("b1", "m3"), ResultResponse.class);
+
+    ResultWithNextResponse returned =
+        rest.postForObject(
+            url("/api/return"), new ReturnRequest("b1", "m1"), ResultWithNextResponse.class);
+
+    assertThat(returned.ok()).isTrue();
+    assertThat(returned.nextMemberId()).isEqualTo("m2");
+
+    BookResponse book =
+        rest.getForObject(url("/api/books"), BooksResponse.class).items().stream()
+            .filter(b -> b.id().equals("b1"))
+            .findFirst()
+            .orElseThrow();
+    assertThat(book.loanedTo()).isEqualTo("m2");
+    assertThat(book.reservationQueue()).containsExactly("m3");
   }
 
   private String url(String path) {
